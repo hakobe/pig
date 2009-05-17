@@ -37,8 +37,7 @@ sub fix_last_update_for {
 sub on_check {
     my ($self, $pig) = @_;
 
-    use Data::Dumper;
-    warn Dumper [keys %{ $self->hatena_users }];
+    warn "checking: " . (join ", ", keys %{ $self->hatena_users });
 
     for my $hatena_user (keys %{ $self->hatena_users }) {
         # TODO If-Modifed-Since をみて抜けたりする
