@@ -1,0 +1,12 @@
+# Pig 
+Pig は Perl IRC Gateway です．
+Pigを使うと，Perlであれやこれや処理した結果をIRCに発言させるプログラムを簡単に書くことができます．できるようになる予定です．
+
+## 使い方
+今のところ Myはてな(http://www.hatena.ne.jp/) の最新の状況を発言するmyhatena.plがサンプルプログラムとして使えます
+
+    git clone git://github.com/hakobe/pig.git
+    cd pig
+    perl -Ilib script/myhatena.pl
+
+でプログラムを起動した後，お使いのIRCクライアントで，localhost:16667 に接続してください．
