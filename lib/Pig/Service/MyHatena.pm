@@ -38,23 +38,55 @@ sub fix_last_update_for {
     $self->last_updates->{$user} = DateTime->now(time_zone => 'Asia/Tokyo');
 }
 
-sub on_start {
-    my ($self, $pig) = @_;
-
-    # antennaさん
-    $pig->join('antenna', '#antenna');
-}
+sub on_start { }
 
 sub on_check {
     my ($self, $pig) = @_;
 
+    $self->check_antenna($pig);
+    $self->check_hatena_user($pig);
+}
+
+# TODO いまはほとんどcheck_hatena_userと一緒だけど author の扱い方で結構かわってきそうだ
+sub check_antenna {
+    my ($self, $pig) = @_;
+    return unless $self->hatena_users->{antenna};
+    warn "checking antenna";
+
+    my $rss_uri = URI->new(sprintf('http://www.hatena.ne.jp/%s/antenna.rss', $self->hatena_id));
+
+    # TODO If-Modifed-Since をみて抜けたりする
+    my $feed = XML::Feed->parse($rss_uri);
+    sleep 1; # 適度にまつ
+
+    if (!$feed) {
+        warn "antenna: fetching rss is failed";
+        return;
+    }
+    if (   $feed->entries 
+        && $self->last_updates->{antenna}
+        && (reverse($feed->entries))[0]->issued < $self->last_updates->{antenna}) {
+        warn "antenna: not updated";
+        return;
+    }
+        
+    my $has_new = 0;
+    for my $entry (reverse($feed->entries)) {
+        $has_new = 1;
+        # TODO メッセージフォーマットをconfigで指定できるよう
+        my $message = sprintf("%s: %s %s", $entry->author, $entry->title, $entry->link);
+        # TODO authorが発言できるとなお良い => anntenaのユーザのみを管理する必要
+        $pig->privmsg( 'antenna', "#antenna", $message );
+    }
+    $self->fix_last_update_for('antenna') if $has_new;
+}
+
+sub check_hatena_user {
+    my ($self, $pig) = @_;
     warn "checking: " . (join ", ", keys %{ $self->hatena_users }) if keys %{ $self->hatena_users };
 
-    # TODO antenna と hatena_userは別のロジックを使うように
-    for my $hatena_user ('antenna', (keys %{ $self->hatena_users })) {
-        my $rss_uri = $hatena_user eq 'antenna' ? 
-                URI->new(sprintf('http://www.hatena.ne.jp/%s/antenna.rss', $self->hatena_id)) :
-                URI->new(sprintf('http://www.hatena.ne.jp/%s/activities.rss', $hatena_user))  ;
+    for my $hatena_user (keys %{ $self->hatena_users }) {
+        my $rss_uri = URI->new(sprintf('http://www.hatena.ne.jp/%s/activities.rss', $hatena_user))  ;
 
         # TODO If-Modifed-Since をみて抜けたりする
         my $feed = XML::Feed->parse($rss_uri);
@@ -75,12 +107,14 @@ sub on_check {
         for my $entry (reverse($feed->entries)) {
             $has_new = 1;
             # TODO: メッセージフォーマットをconfigで指定できるよう
-            my $message = sprintf("%s (%s)", $entry->title, $entry->link);
+            my $message = sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]'));
             $pig->privmsg( $hatena_user, "#$hatena_user", $message );
         }
         $self->fix_last_update_for($hatena_user) if $has_new;
     }
 }
+
+# TODO このへんのantennaの扱いをまともに
 
 sub on_ircd_join {
     my ($self, $pig, $nick, $channel) = @_;
