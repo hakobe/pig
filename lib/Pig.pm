@@ -125,7 +125,7 @@ Pig -
 
 =head1 DESCRIPTION
 
-Pig is
+Pig is Perl IRC Gateway framework
 
 =head1 AUTHOR
 
