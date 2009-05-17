@@ -1,104 +1,116 @@
 use strict;
 use warnings;
-use POE qw(Component::Server::IRC);
 use XML::Feed;
 use URI;
 use DateTime;
+use MooseX::Declare;
 
-my $ircd = POE::Component::Server::IRC->spawn( config => {
-    servername => 'localhost',
-    nicklen    => 15,
-    network    => 'pig',
-});
+my $LAST_UPDATE;
+class Pig {
+    use Moose;
+    use MooseX::POE::SweetArgs qw(event);
+    use POE qw(Component::Server::IRC);
 
-
-my $LAST_UPDATE = DateTime->now(time_zone => 'Asia/Tokyo');
-POE::Session->create(
-    inline_states => {
-        _start             => \&_start,
-        counter            => \&counter,
-    },
-    heap => { 
-        ircd   => $ircd,
-        config => { # TODO objectの設定にはきだす => Moose?
-            bot_name    => 'pig',
-            bot_channel => '#pig',
-            port        => 6667,
-            interval    => 10,
-            callback    => sub {
-                my ($ircd, $name, $channel) = @_;
-                my $feed = XML::Feed->parse(URI->new('http://www.hatena.ne.jp/hakobe932/activities.rss'))
-                    or die XML::Feed->errstr; # TODO If-Modifed-Since をみて抜けたりする
-                
-                my $has_new = 0;
-                for my $entry ($feed->entries) {
-                    next if $LAST_UPDATE > $entry->issued;
-                    $has_new++;
-                    my $message = sprintf("%s (%s)", $entry->title, $entry->link);
-                    warn $message;
-                    $ircd->yield( 'daemon_cmd_privmsg', $name, $channel, $message );
-                }
-                $LAST_UPDATE = DateTime->now(time_zone => 'Asia/Tokyo') if $has_new;
-            },
+    has ircd => (
+        is => 'ro',
+        default => sub {
+            POE::Component::Server::IRC->spawn( config => {
+                servername => 'localhost',
+                nicklen    => 15,
+                network    => 'pig',
+            });
         },
-    },
-);
+    );
 
-$poe_kernel->run;
-exit 0;
+    has config => (
+        is => 'ro',
+        isa => 'HashRef',
+        default => sub {
+            +{
+                bot_name    => 'pig',
+                bot_channel => '#pig',
+                port        => 6667,
+            };
+        },
+    );
 
+    has service => (
+        is => 'ro',
+    );
 
-sub _start {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
-    my $ircd = $heap->{ircd};
-    my $config = $heap->{config};
-    $ircd->yield( 'register' );
-    $ircd->add_listener( port =>  $config->{port} );
+    sub START {
+        my ($self) = @_;
+        $self->ircd->yield( 'register' );
+        $self->ircd->add_listener( port => $self->config->{port} );
 
-    # カウントスタート
-    $kernel->yield( 'counter' );
+        $self->yield( 'check' );
 
+        warn 'starting';
+        warn $self->config->{bot_name};
+        warn $self->config->{bot_channel};
 
-    warn 'starting';
-    warn "$config->{bot_name}, $config->{bot_channel}";
+        # botをしこむ
+        $self->ircd->yield(add_spoofed_nick => { nick => $self->config->{bot_name} });
+        $self->ircd->yield(daemon_cmd_join => $self->config->{bot_name}, $self->config->{bot_channel});
 
-    register_bot($ircd, $config->{bot_name}, $config->{bot_channel});
-    undef;
-}
-
-sub register_bot {
-    my ($ircd, $name, $channel) = @_; # TODO object_statesにしてheapを渡す必要がないようにしよう
-
-    $ircd->yield(add_spoofed_nick => { nick => $name });
-    $ircd->yield(daemon_cmd_join => $name, $channel);
-}
-
-sub counter {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
-    my $ircd = $heap->{ircd};
-    my $config = $heap->{config};
-    warn 'counting...';
-    $config->{callback}->($ircd, $config->{bot_name}, $config->{bot_channel});
-    $kernel->alarm( counter => time() + $config->{interval}, 0);
-}
-
-# for debug
-sub _default {
-    my ( $event, $args ) = @_[ ARG0 .. $#_ ];
-    print STDOUT "$event: ";
-    foreach (@$args) {
-    SWITCH: {
-            if ( ref($_) eq 'ARRAY' ) {
-                print STDOUT "[", join ( ", ", @$_ ), "] ";
-                last SWITCH;
-            }
-            if ( ref($_) eq 'HASH' ) {
-                print STDOUT "{", join ( ", ", %$_ ), "} ";
-                last SWITCH;
-            }
-            print STDOUT "'$_' ";
-        }
+        undef;
     }
-    print STDOUT "\n";
-    return 0;    # Don't handle signals.
+
+    event check => sub {
+        my ($self) = @_;
+        warn 'check...';
+        $self->service->on_check($self);
+
+        # MooseX::POEを拡張してalarmも呼べるようにしたい!
+        POE::Kernel->alarm( check => time() + $self->service->interval, 0);
+    };
+
 }
+
+class Pig::Service::MyHatena { # Role とかにする
+    use XML::Feed;
+    use DateTime;
+
+    has interval => (
+        is => 'ro',
+        default => sub {
+            60 * 30; # 30分
+        }
+    );
+
+    has last_update => (
+        is => 'rw',
+        default => sub {
+            DateTime->now(time_zone => 'local');
+        }
+    );
+
+    sub fix_last_update {
+        my $self = shift;
+        $self->last_update(DateTime->now(time_zone => 'Asia/Tokyo'));
+    }
+
+    sub on_check {
+        my ($self, $pig) = @_;
+
+        my $feed = XML::Feed->parse(URI->new('http://www.hatena.ne.jp/hakobe932/activities.rss'))
+            or die XML::Feed->errstr; # TODO If-Modifed-Since をみて抜けたりする
+        
+        my $has_new = 0;
+        for my $entry ($feed->entries) {
+            next if $self->last_update > $entry->issued;
+            $has_new++;
+            my $message = sprintf("%s (%s)", $entry->title, $entry->link);
+            warn $message;
+            $pig->ircd->yield( 'daemon_cmd_privmsg', $pig->config->{bot_name}, $pig->config->{bot_channel}, $message );
+        }
+        $self->fix_last_update if $has_new;
+    }
+
+    # TODO チャンネルのjoinとかいろんなタイミングにhookする
+}
+
+Pig->new( service => Pig::Service::MyHatena->new(interval => 5));
+POE::Kernel->run;
+
+
