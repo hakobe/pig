@@ -25,7 +25,7 @@ has config => ( # TODO ファイルからとか呼び出せるように
     isa => 'HashRef',
     default => sub {
         +{
-            port        => 6667,
+            port        => 16667,
         };
     },
 );
