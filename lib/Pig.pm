@@ -40,9 +40,11 @@ sub run {
 
 sub START {
     my ($self) = @_;
+    warn 'starting...';
     $self->ircd->yield( 'register' );
     $self->ircd->add_listener( port => $self->config->{port} );
 
+    $self->service->on_start($self);
     $self->yield( 'check' );
 }
 
@@ -65,7 +67,7 @@ sub part {
 
 event check => sub {
     my ($self) = @_;
-    warn 'check...';
+    warn 'checking...';
     $self->service->on_check($self);
 
     # TODO MooseX::POEを拡張してalarmも呼べるようにしたい

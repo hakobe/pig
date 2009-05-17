@@ -17,6 +17,10 @@ has interval => (
     }
 );
 
+has hatena_id => (
+    is => 'ro',
+);
+
 has last_updates => (
     is => 'rw',
     isa => 'HashRef',
@@ -34,14 +38,26 @@ sub fix_last_update_for {
     $self->last_updates->{$user} = DateTime->now(time_zone => 'Asia/Tokyo');
 }
 
+sub on_start {
+    my ($self, $pig) = @_;
+
+    # antennaさん
+    $pig->join('antenna', '#antenna');
+}
+
 sub on_check {
     my ($self, $pig) = @_;
 
     warn "checking: " . (join ", ", keys %{ $self->hatena_users }) if keys %{ $self->hatena_users };
 
-    for my $hatena_user (keys %{ $self->hatena_users }) {
+    # TODO antenna と hatena_userは別のロジックを使うように
+    for my $hatena_user ('antenna', (keys %{ $self->hatena_users })) {
+        my $rss_uri = $hatena_user eq 'antenna' ? 
+                URI->new(sprintf('http://www.hatena.ne.jp/%s/antenna.rss', $self->hatena_id)) :
+                URI->new(sprintf('http://www.hatena.ne.jp/%s/activities.rss', $hatena_user))  ;
+
         # TODO If-Modifed-Since をみて抜けたりする
-        my $feed = XML::Feed->parse(URI->new(sprintf('http://www.hatena.ne.jp/%s/activities.rss', $hatena_user)));
+        my $feed = XML::Feed->parse($rss_uri);
         sleep 1; # 適度にまつ
 
         if (!$feed) {
@@ -49,6 +65,7 @@ sub on_check {
             next;
         }
         if (   $feed->entries 
+            && $self->last_updates->{$hatena_user}
             && (reverse($feed->entries))[0]->issued < $self->last_updates->{$hatena_user}) {
             warn "$hatena_user: not updated";
             next;
