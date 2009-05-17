@@ -6,7 +6,7 @@ use Pig::Service::MyHatena;
 my $pig = Pig->new(
     service => Pig::Service::MyHatena->new( 
         hatena_id => 'hakobe932', # 自分のはてなID
-        interval  => 10,         # 5分毎にチェック
+        interval  => 300,         # 5分毎にチェック
     ),
     config => { port => 16667 },
 );
