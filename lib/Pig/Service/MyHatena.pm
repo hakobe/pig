@@ -50,7 +50,7 @@ sub on_check {
 # TODO いまはほとんどcheck_hatena_userと一緒だけど author の扱い方で結構かわってきそうだ
 sub check_antenna {
     my ($self, $pig) = @_;
-    return unless $self->hatena_users->{antenna};
+    return unless $pig->ircd->state_chan_exists('#antenna');
     warn "checking antenna";
 
     my $rss_uri = URI->new(sprintf('http://www.hatena.ne.jp/%s/antenna.rss', $self->hatena_id));
@@ -113,19 +113,21 @@ sub check_hatena_user {
 sub on_ircd_join {
     my ($self, $pig, $nick, $channel) = @_;
     my ($hatena_user) = $channel =~ m/^\#(.*)$/xms;
+    return if $nick eq 'antenna';
     return if $self->hatena_users->{$nick};
 
     $pig->join($hatena_user, "#$hatena_user");
-    $self->hatena_users->{$hatena_user} = 1;
+    $self->hatena_users->{$hatena_user} = 1 if $hatena_user ne 'antenna';
 }
 
 sub on_ircd_part {
     my ($self, $pig, $nick, $channel) = @_;
     my ($hatena_user) = $channel =~ m/^\#(.*)$/xms;
+    return if $nick eq 'antenna';
     return if $self->hatena_users->{$nick};
 
     $pig->part($hatena_user, "#$hatena_user");
-    delete $self->hatena_users->{$hatena_user};
+    delete $self->hatena_users->{$hatena_user} if $hatena_user ne 'antenna';
 }
 
 __PACKAGE__->meta->make_immutable;
