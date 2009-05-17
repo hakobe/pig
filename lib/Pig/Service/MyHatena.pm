@@ -63,15 +63,12 @@ sub check_antenna {
         warn "antenna: fetching rss is failed";
         return;
     }
-    if (   $feed->entries 
-        && $self->last_updates->{antenna}
-        && (reverse($feed->entries))[0]->issued < $self->last_updates->{antenna}) {
-        warn "antenna: not updated";
-        return;
-    }
         
     my $has_new = 0;
     for my $entry (reverse($feed->entries)) {
+        next if $self->last_updates->{antenna} 
+                && $entry->issued < $self->last_updates->{antenna};
+
         $has_new = 1;
         # TODO メッセージフォーマットをconfigで指定できるよう
         my $message = sprintf("%s: %s %s", $entry->author, $entry->title, $entry->link);
@@ -96,15 +93,12 @@ sub check_hatena_user {
             warn "$hatena_user fetching rss is failed";
             next;
         }
-        if (   $feed->entries 
-            && $self->last_updates->{$hatena_user}
-            && (reverse($feed->entries))[0]->issued < $self->last_updates->{$hatena_user}) {
-            warn "$hatena_user: not updated";
-            next;
-        }
         
         my $has_new = 0;
         for my $entry (reverse($feed->entries)) {
+            next if $self->last_updates->{$hatena_user} 
+                 && $entry->issued < $self->last_updates->{$hatena_user};
+
             $has_new = 1;
             # TODO: メッセージフォーマットをconfigで指定できるよう
             my $message = sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]'));
