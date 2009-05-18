@@ -27,12 +27,14 @@ no Moose;
 sub get_config_from_file {
     my ($class, $file) = @_;
 
-    if (-f $file) {
-        return YAML::XS::LoadFile($file);
+    my $config = {};
+    eval {
+        $config = YAML::XS::LoadFile($file);
+    };
+    if ($@){
+        die "Failed to open config file: $@";
     }
-    else {
-        return {};
-    }
+    return $config;
 }
 
 sub run {
