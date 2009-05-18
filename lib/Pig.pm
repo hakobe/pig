@@ -7,6 +7,7 @@ our $VERSION = '0.01';
 use POE qw(Component::Server::IRC);
 use Moose;
 use MooseX::POE::SweetArgs qw(event);
+use UNIVERSAL::require;
 
 
 has ircd => (
@@ -20,29 +21,49 @@ has ircd => (
     },
 );
 
-has config => ( # TODO ファイルからとか呼び出せるように
+has port => (
     is => 'ro',
-    isa => 'HashRef',
-    default => sub {
-        +{
-            port        => 16667,
-        };
-    },
+    isa => 'Int',
+    default => sub { 16667 },
 );
 
 has service => (
     is => 'ro',
 );
 
-sub run {
-    POE::Kernel->run;
+sub bootstrap {
+    my ($class, $config) = @_;
+
+    my $service_config = delete $config->{service};
+    my $service = $class->prepare_service($service_config);
+
+    my $self = $class->new({service => $service, %$config});
+    warn 'Starting pig with ' . ref $service;
+    $self->run;
 }
+
+
+sub prepare_service {
+    my ($class, $service_config) = @_;
+    my $name = delete $service_config->{name};
+    my $service_class = 'Pig::Service::' . $name;
+    eval {
+        $service_class->use;
+    };
+    if ($@) { die "use $service_class failed: $@" }
+
+    return $service_class->new($service_config);
+}
+
+# TODO 以下の機能はPig::IRCDとかにはき出す予定
+
+sub run { POE::Kernel->run }
 
 sub START {
     my ($self) = @_;
     warn 'starting...';
     $self->ircd->yield( 'register' );
-    $self->ircd->add_listener( port => $self->config->{port} );
+    $self->ircd->add_listener( port => $self->port );
 
     $self->service->on_start($self);
     $self->yield( 'check' );
@@ -89,26 +110,6 @@ event ircd_daemon_part => sub {
     $self->ircd->yield(del_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
     $self->service->on_ircd_part($self, $nick, $channel);
 };
-
-#    sub DEFAULT { # FOR DEBUG
-#        my ( $self, $event, @args ) = @_;
-#        print STDOUT "$event: ";
-#        foreach (@args) {
-#        SWITCH: {
-#                if ( ref($_) eq 'ARRAY' ) {
-#                    print STDOUT "[", join ( ", ", @$_ ), "] ";
-#                    last SWITCH;
-#                }
-#                if ( ref($_) eq 'HASH' ) {
-#                    print STDOUT "{", join ( ", ", %$_ ), "} ";
-#                    last SWITCH;
-#                }
-#                print STDOUT "'$_' ";
-#            }
-#        }
-#        print STDOUT "\n";
-#        return 0;    # Don't handle signals.
-#    }
 
 __PACKAGE__->meta->make_immutable;
 no Moose;

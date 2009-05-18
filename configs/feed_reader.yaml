@@ -1,0 +1,10 @@
+service:
+  name: FeedReader
+  interval: 300 # 5分毎にチェック
+  bot_name: feed
+  channels:
+    '#fse':
+      feeds:
+        - uri: http://www.douzemille.net/labs/urlstack/rss.cgi
+
+port: 16668
