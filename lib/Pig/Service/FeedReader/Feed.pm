@@ -37,7 +37,6 @@ sub each_new_entry {
     for my $entry (reverse($xml_feed->entries)) {
 
         next if $self->last_update && $entry->issued < $self->last_update;
-        warn $entry->title; 
         $has_new = 1;
         $code->($entry);
     }
