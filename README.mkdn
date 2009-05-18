@@ -7,7 +7,7 @@ Pigを使うと，Perlであれやこれや処理した結果をIRCに発言さ�
 
     git clone git://github.com/hakobe/pig.git
     cd pig
-    perl -Ilib script/myhatena.pl
+    perl -Ilib script/pig.pl config/myhatena.yaml
 
 でプログラムを起動した後，お使いのIRCクライアントで，localhost:16667 に接続してください．チャンネルにjoinするとMyはてなの更新状況がながれてきます．チャンネル名のルールは以下のようになります．
 
