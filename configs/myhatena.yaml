@@ -1,0 +1,6 @@
+service:
+  name: MyHatena
+  hatena_id: hakobe932
+  interval: 300 # 5分毎にチェック
+
+port: 16667
