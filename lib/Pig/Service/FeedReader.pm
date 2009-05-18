@@ -58,19 +58,22 @@ sub on_start { }
 sub on_check {
     my ($self, $pig) = @_;
 
-    for my $channel ( values %{ $self->channels } ) {
-        next unless $channel->is_active;
+    $self->check_channel($pig, $_) for ( values %{ $self->channels } );
+}
 
-        for my $feed (@{ $channel->feeds }) {
-            $feed->each_new_entry( sub { 
-                my $entry = shift;
-                warn $entry->title;
+sub check_channel {
+    my ($self, $pig, $channel) = @_;
+    return unless $channel->is_active;
 
-                # TODO: メッセージフォーマットをconfigで指定できるよう
-                my $message = sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]'));
-                $pig->privmsg( $self->bot_name, $channel->name, $message );
-            });
-        }
+    for my $feed (@{ $channel->feeds }) {
+        $feed->each_new_entry( sub { 
+            my $entry = shift;
+            warn $entry->title;
+
+            # TODO: メッセージフォーマットをconfigで指定できるよう
+            my $message = sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]'));
+            $pig->privmsg( $self->bot_name, $channel->name, $message );
+        });
     }
 }
 
@@ -81,6 +84,8 @@ sub on_ircd_join {
 
     $self->channels->{$channel}->activate;
     $pig->join($self->bot_name, $channel);
+
+    $self->check_channel($pig, $self->channels->{$channel});
 }
 
 sub on_ircd_part {

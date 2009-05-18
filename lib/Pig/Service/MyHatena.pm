@@ -19,23 +19,22 @@ has hatena_id => (
     is => 'ro',
 );
 
-sub on_check {
-    my ($self, $pig) = @_;
+sub check_channel {
+    my ($self, $pig, $channel) = @_;
+    return unless $channel->is_active;
 
-    for my $channel ( values %{ $self->channels } ) {
-        next unless $channel->is_active;
-        my ($bot_name) = $channel->name =~ m/^\#(.*)$/xms;
+    my ($bot_name) = $channel->name =~ m/^\#(.*)$/xms;
 
-        for my $feed (@{ $channel->feeds }) {
-            $feed->each_new_entry( sub { 
-                my $entry = shift;
-                warn $entry->title; 
-                my $message = $bot_name eq 'antenna' ?
-                    sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]')) :
-                    sprintf("%s: %s %s", $entry->author, $entry->title, $entry->link)               ;
-                $pig->privmsg( $bot_name, $channel->name, $message );
-            });
-        }
+    for my $feed (@{ $channel->feeds }) {
+        $feed->each_new_entry( sub { 
+            my $entry = shift;
+            warn $entry->title;
+
+            my $message = $bot_name eq 'antenna' ?
+                sprintf("%s: %s %s", $entry->author, $entry->title, $entry->link)               :
+                sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]')) ;
+            $pig->privmsg( $bot_name, $channel->name, $message );
+        });
     }
 }
 
@@ -60,6 +59,8 @@ sub on_ircd_join {
     $channel->activate;
     $self->channels->{$channel_name} = $channel;
     $pig->join($bot_name, $channel_name);
+
+    $self->check_channel($pig, $channel);
 }
 
 sub on_ircd_part {

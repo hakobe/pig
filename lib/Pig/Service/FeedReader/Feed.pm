@@ -15,6 +15,7 @@ has uri => (
 has last_update => (
     is => 'rw',
     isa => 'DateTime',
+    default => sub { DateTime->from_epoch( epoch => 0 ) },
 );
 
 sub fix_last_update {
