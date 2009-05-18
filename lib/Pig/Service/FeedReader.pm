@@ -5,8 +5,8 @@ use warnings;
 use Moose;
 # TODO Pig::Service を Role にする
 
-#use Pig::Service::FeedReader::Channel;
-#use Pig::Service::FeedReader::Feed;
+use Pig::Service::FeedReader::Channel;
+use Pig::Service::FeedReader::Feed;
 use URI;
 
 has interval => (
@@ -94,90 +94,4 @@ sub on_ircd_part {
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
-
-package Pig::Service::FeedReader::Channel;
-use Moose;
-use URI;
-use DateTime;
-
-has name => (
-    is => 'ro',
-    isa => 'Str'
-);
-
-has is_active => (
-    is => 'rw',
-    isa => 'Bool',
-    default => sub { 0 },
-);
-
-has feeds => (
-    is => 'ro',
-    isa => 'ArrayRef',
-    default => sub { [] },
-);
-
-sub activate {
-    my $self = shift;
-    $self->is_active(1);
-}
-
-sub deactivate {
-    my $self = shift;
-    $self->is_active(0);
-}
-
-
-__PACKAGE__->meta->make_immutable;
-no Moose;
-
-package Pig::Service::FeedReader::Feed;
-use Moose;
-use XML::Feed;
-use URI;
-use DateTime;
-use Time::HiRes qw(sleep);
-
-has uri => (
-    is => 'ro',
-    isa => 'URI'
-);
-
-has last_update => (
-    is => 'rw',
-    isa => 'DateTime',
-);
-
-sub fix_last_update {
-    my ($self, $user) = @_;
-    $self->last_update(DateTime->now(time_zone => 'Asia/Tokyo'));
-}
-
-sub each_new_entry {
-    my ($self, $code) = @_;
-
-    # TODO If-Modifed-Since をみて抜けたりする
-    my $xml_feed = XML::Feed->parse($self->uri);
-    sleep 1; # 適度にまつ
-    if (!$xml_feed) {
-        warn "fetching feed is failed " . $self->uri;
-        return;
-    }
-    
-    my $has_new = 0;
-    for my $entry (reverse($xml_feed->entries)) {
-        use Data::Dumper;
-
-        warn Dumper $entry->title; 
-        #next if $self->last_update && $entry->issued < $self->last_update;
-        $has_new = 1;
-        $code->($entry);
-    }
-    $self->fix_last_update if $has_new;
-}
-
-
-__PACKAGE__->meta->make_immutable;
-no Moose;
-
 1;
