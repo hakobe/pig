@@ -35,10 +35,9 @@ sub each_new_entry {
     
     my $has_new = 0;
     for my $entry (reverse($xml_feed->entries)) {
-        use Data::Dumper;
 
-        warn Dumper $entry->title; 
-        #next if $self->last_update && $entry->issued < $self->last_update;
+        next if $self->last_update && $entry->issued < $self->last_update;
+        warn $entry->title; 
         $has_new = 1;
         $code->($entry);
     }
