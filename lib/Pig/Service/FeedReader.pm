@@ -66,9 +66,13 @@ sub check_channel {
     return unless $channel->is_active;
 
     for my $feed (@{ $channel->feeds }) {
-        $feed->each_new_entry( sub { 
+        $feed->each_new_entry( $pig, sub { 
             my $entry = shift;
-            warn $entry->title;
+            $pig->log->debug(
+                sprintf( "%s: %s - %s",
+                    ($entry->author || '[no name]'),
+                    ($entry->title  || '[no title]'),
+                    ($entry->link   || '[no link]')));
 
             # TODO: メッセージフォーマットをconfigで指定できるよう
             my $message = sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]'));

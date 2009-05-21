@@ -11,14 +11,19 @@ has '+configfile' => (
     default => './config.yaml',
 );
 
+has port => (
+    is => 'ro',
+    isa => 'Int',
+);
+
 has service => (
     is => 'ro',
     isa => 'HashRef',
 );
 
-has port => (
+has log_level => (
     is => 'ro',
-    isa => 'Int',
+    isa => 'Str',
 );
 
 __PACKAGE__->meta->make_immutable;
@@ -41,8 +46,9 @@ sub run {
     my $self = shift;
 
     Pig->bootstrap({
-        service => $self->service,
-        port    => $self->port,
+        service   => $self->service,
+        port      => $self->port,
+        log_level => $self->log_level,
     });
 }
 

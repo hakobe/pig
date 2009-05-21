@@ -24,13 +24,13 @@ sub fix_last_update {
 }
 
 sub each_new_entry {
-    my ($self, $code) = @_;
+    my ($self, $pig, $code) = @_;
 
     # TODO If-Modifed-Since をみて抜けたりする
     my $xml_feed = XML::Feed->parse($self->uri);
     sleep 1; # 適度にまつ
     if (!$xml_feed) {
-        warn "fetching feed is failed " . $self->uri;
+        $pig->log->info('Fetching Feed failed for ' . $self->uri);
         return;
     }
     

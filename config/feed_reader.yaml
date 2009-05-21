@@ -1,3 +1,5 @@
+port: 16668
+log_level: debug
 service:
   name: FeedReader
   interval: 300 # 5分毎にチェック
@@ -7,4 +9,3 @@ service:
       feeds:
         - uri: http://www.douzemille.net/labs/urlstack/rss.cgi
 
-port: 16668

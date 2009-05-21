@@ -4,11 +4,17 @@ use warnings;
 
 our $VERSION = '0.01';
 
-use POE qw(Component::Server::IRC);
 use Moose;
-use MooseX::POE::SweetArgs qw(event);
 use UNIVERSAL::require;
 
+# POE
+use MooseX::POE::SweetArgs qw(event);
+use POE qw(Component::Server::IRC);
+
+# Log
+use Log::Log4perl qw(:easy);
+
+with 'MooseX::Log::Log4perl';
 
 has ircd => (
     is => 'ro',
@@ -19,6 +25,12 @@ has ircd => (
             network    => 'pig',
         });
     },
+);
+
+has log_level => (
+    is => 'ro',
+    isa => 'Str',
+    default => sub { 'info' },
 );
 
 has port => (
@@ -33,12 +45,10 @@ has service => (
 
 sub bootstrap {
     my ($class, $config) = @_;
-
     my $service_config = delete $config->{service};
     my $service = $class->prepare_service($service_config);
 
     my $self = $class->new({service => $service, %$config});
-    warn 'Starting pig with ' . ref $service;
     $self->run;
 }
 
@@ -55,13 +65,32 @@ sub prepare_service {
     return $service_class->new($service_config);
 }
 
+sub BUILD {
+    my $self = shift;
+    Log::Log4perl->easy_init( {
+        ALL    => $ALL,
+        TRACE  => $TRACE,
+        DEBUG  => $DEBUG,
+        INFO   => $INFO,
+        WARN   => $WARN,
+        ERROR  => $ERROR,
+        FATAL  => $FATAL,
+        OFF    => $OFF,
+    }->{uc($self->log_level)});
+}
+
 # TODO 以下の機能はPig::IRCDとかにはき出す予定
 
-sub run { POE::Kernel->run }
+sub run { 
+    my $self = shift;
+    my $service_name = ref $self->service;
+    $self->log->info("Starting up pig with $service_name.");
+    POE::Kernel->run;
+}
 
 sub START {
     my ($self) = @_;
-    warn 'starting...';
+    $self->log->debug("Starting up POE server.");
     $self->ircd->yield( 'register' );
     $self->ircd->add_listener( port => $self->port );
 
@@ -88,8 +117,9 @@ sub part {
 
 event check => sub {
     my ($self) = @_;
-    warn 'checking...';
+    $self->log->debug('Start checking.');
     $self->service->on_check($self);
+    $self->log->debug('Finish checking.');
 
     # TODO MooseX::POEを拡張してalarmも呼べるようにしたい
     POE::Kernel->alarm( check => time() + $self->service->interval, 0);

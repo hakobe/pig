@@ -19,16 +19,20 @@ has hatena_id => (
     is => 'ro',
 );
 
-sub check_channel {
+sub check_channel { # FIXME FeedReaderとあまりかわらないのでどうにかならないか
     my ($self, $pig, $channel) = @_;
     return unless $channel->is_active;
 
     my ($bot_name) = $channel->name =~ m/^\#(.*)$/xms;
 
     for my $feed (@{ $channel->feeds }) {
-        $feed->each_new_entry( sub { 
+        $feed->each_new_entry( $pig, sub { 
             my $entry = shift;
-            warn $entry->title;
+            $pig->log->debug(
+                sprintf( "%s: %s - %s",
+                    ($entry->author || '[no name]'),
+                    ($entry->title  || '[no title]'),
+                    ($entry->link   || '[no link]')));
 
             my $message = $bot_name eq 'antenna' ?
                 sprintf("%s: %s %s", $entry->author, $entry->title, $entry->link)               :
