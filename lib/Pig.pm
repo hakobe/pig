@@ -90,7 +90,7 @@ sub run {
 
 sub START {
     my ($self) = @_;
-    $self->log->debug("Starting up POE server.");
+    $self->log->debug("Starting up POE IRCd server.");
     $self->ircd->yield( 'register' );
     $self->ircd->add_listener( port => $self->port );
 
@@ -127,6 +127,7 @@ event check => sub {
 
 event ircd_daemon_join => sub {
     my ($self, $user, $channel) = @_;
+    $self->log->debug("$user join to $channel.");
     my $nick = (split /\!/, $user)[0];
 
     $self->ircd->yield(add_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
@@ -135,6 +136,7 @@ event ircd_daemon_join => sub {
 
 event ircd_daemon_part => sub {
     my ($self, $user, $channel) = @_;
+    $self->log->debug("$user part form $channel.");
     my $nick = (split /\!/, $user)[0];
 
     $self->ircd->yield(del_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
