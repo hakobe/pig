@@ -5,36 +5,21 @@ use Moose;
 use YAML::XS;
 use Pig;
 
-with qw(MooseX::ConfigFromFile);
-
-has '+configfile' => (
-    default => './config.yaml',
-);
-
-has port => (
-    is => 'ro',
-    isa => 'Int',
-);
-
-has service => (
-    is => 'ro',
-    isa => 'HashRef',
-);
-
-has log_level => (
+has 'configfile' => (
     is => 'ro',
     isa => 'Str',
+    default => './config.yaml',
 );
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 
 sub get_config_from_file {
-    my ($class, $file) = @_;
+    my $self = shift;
 
     my $config = {};
     eval {
-        $config = YAML::XS::LoadFile($file);
+        $config = YAML::XS::LoadFile($self->configfile);
     };
     if ($@){
         die "Failed to open config file: $@";
@@ -44,12 +29,9 @@ sub get_config_from_file {
 
 sub run {
     my $self = shift;
+    my $config = $self->get_config_from_file;
 
-    Pig->bootstrap({
-        service   => $self->service,
-        port      => $self->port,
-        log_level => $self->log_level,
-    });
+    Pig->bootstrap($config);
 }
 
 1;
