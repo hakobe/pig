@@ -8,6 +8,7 @@ use XML::Feed;
 use URI;
 use DateTime;
 use Time::HiRes qw(sleep);
+use Encode;
 
 use Pig::Service::FeedReader::Channel;
 use Pig::Service::FeedReader::Feed;
@@ -29,10 +30,10 @@ sub check_channel { # FIXME FeedReaderとあまりかわらないのでどうに
         $feed->each_new_entry( $pig, sub { 
             my $entry = shift;
             $pig->log->debug(
-                sprintf( "%s: %s - %s",
+                encode_utf8(sprintf( "%s: %s - %s",
                     ($entry->author || '[no name]'),
                     ($entry->title  || '[no title]'),
-                    ($entry->link   || '[no link]')));
+                    ($entry->link   || '[no link]'))));
 
             my $message = $bot_name eq 'antenna' ?
                 sprintf("%s: %s %s", $entry->author, $entry->title, $entry->link)               :

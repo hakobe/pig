@@ -8,6 +8,7 @@ use Moose;
 use Pig::Service::FeedReader::Channel;
 use Pig::Service::FeedReader::Feed;
 use URI;
+use Encode;
 
 has interval => (
     is => 'ro',
@@ -69,10 +70,10 @@ sub check_channel {
         $feed->each_new_entry( $pig, sub { 
             my $entry = shift;
             $pig->log->debug(
-                sprintf( "%s: %s - %s",
+                encode_utf8(sprintf( "%s: %s - %s",
                     ($entry->author || '[no name]'),
                     ($entry->title  || '[no title]'),
-                    ($entry->link   || '[no link]')));
+                    ($entry->link   || '[no link]'))));
 
             # TODO: メッセージフォーマットをconfigで指定できるよう
             my $message = sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]'));
