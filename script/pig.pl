@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use FindBin::libs;
 use Pig::CLI;
 
 my %args;
