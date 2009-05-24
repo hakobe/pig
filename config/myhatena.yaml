@@ -2,6 +2,6 @@ port: 16667
 log_level: debug
 service:
   name: MyHatena
-  hatena_id: hakobe932
+  hatena_id: __dummy__ # あなたのhatena id
   interval: 300 # 5分毎にチェック
 
