@@ -3,19 +3,12 @@ use strict;
 use warnings; 
 
 use Any::Moose;
-# TODO Pig::Service を Role にする
+with qw(Pig::Role::Service);
 
 use Pig::Service::FeedReader::Channel;
 use Pig::Service::FeedReader::Feed;
 use URI;
 use Encode;
-
-has interval => (
-    is => 'ro',
-    default => sub {
-        60 * 30; # 30分
-    }
-);
 
 has bot_name => (
     is => 'rw',
@@ -53,8 +46,6 @@ sub BUILDARGS {
     $args{channels} = $channels;
     $class->SUPER::BUILDARGS(%args);
 }
-
-sub on_start { }
 
 sub on_check {
     my ($self, $pig) = @_;
