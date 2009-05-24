@@ -4,17 +4,16 @@ use warnings;
 
 our $VERSION = '0.01';
 
-use Moose;
+use Any::Moose;
 use UNIVERSAL::require;
 
 # POE
-use MooseX::POE::SweetArgs qw(event);
+#use Any::Moose 'X::POE::SweetArgs' => [qw(event)];
 use POE qw(Component::Server::IRC);
+use POE::Sugar::Args;
 
 # Log
 use Log::Log4perl qw(:easy);
-
-with 'MooseX::Log::Log4perl';
 
 has ircd => (
     is => 'ro',
@@ -31,6 +30,10 @@ has log_level => (
     is => 'ro',
     isa => 'Str',
     default => sub { 'info' },
+);
+
+has log => (
+    is => 'rw',
 );
 
 has port => (
@@ -77,6 +80,18 @@ sub BUILD {
         FATAL  => $FATAL,
         OFF    => $OFF,
     }->{uc($self->log_level)});
+    $self->log(Log::Log4perl->get_logger(ref $self));
+
+    POE::Session->create(
+        object_states => [
+            $self => {
+                _start           => 'START',
+                check            => 'check',
+                ircd_daemon_join => 'ircd_daemon_join',
+                ircd_daemon_part => 'ircd_daemon_part',
+            },
+        ],
+    );
 }
 
 # TODO 以下の機能はPig::IRCDとかにはき出す予定
@@ -95,7 +110,7 @@ sub START {
     $self->ircd->add_listener( port => $self->port );
 
     $self->service->on_start($self);
-    $self->yield( 'check' );
+    POE::Kernel->yield( 'check' );
 }
 
 sub privmsg {
@@ -115,8 +130,15 @@ sub part {
     $self->ircd->yield(del_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
 }
 
-event check => sub {
-    my ($self) = @_;
+sub _args {
+    my $poe = sweet_args;
+    return ($poe->object, $poe->args);
+}
+
+sub check { # event
+    my $poe = sweet_args;
+    my $self = $poe->object;
+
     $self->log->debug('Start checking.');
     $self->service->on_check($self);
     $self->log->debug('Finish checking.');
@@ -125,8 +147,11 @@ event check => sub {
     POE::Kernel->alarm( check => time() + $self->service->interval, 0);
 };
 
-event ircd_daemon_join => sub {
-    my ($self, $user, $channel) = @_;
+sub ircd_daemon_join { # event
+    my $poe = sweet_args;
+    my $self = $poe->object;
+    my ($user, $channel) = $poe->args;
+
     $self->log->debug("$user join to $channel.");
     my $nick = (split /\!/, $user)[0];
 
@@ -134,8 +159,11 @@ event ircd_daemon_join => sub {
     $self->service->on_ircd_join($self, $nick, $channel);
 };
 
-event ircd_daemon_part => sub {
-    my ($self, $user, $channel) = @_;
+sub ircd_daemon_part { # event
+    my $poe = sweet_args;
+    my $self = $poe->object;
+    my ($user, $channel) = $poe->args;
+
     $self->log->debug("$user part form $channel.");
     my $nick = (split /\!/, $user)[0];
 
@@ -143,8 +171,6 @@ event ircd_daemon_part => sub {
     $self->service->on_ircd_part($self, $nick, $channel);
 };
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
 1;
 __END__
 

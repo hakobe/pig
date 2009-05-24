@@ -1,7 +1,7 @@
 package Pig::Service::FeedReader::Feed;
 use strict;
 use warnings;
-use Moose;
+use Any::Moose;
 use XML::Feed;
 use XML::Atom;
 $XML::Atom::ForceUnicode = 1; # FIXME こうしないと日本語がばける…
@@ -80,6 +80,4 @@ sub iso2dt {
 } 
 
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
 1;

@@ -2,7 +2,7 @@ package Pig::Service::MyHatena;
 use strict;
 use warnings; 
 
-use Moose;
+use Any::Moose;
 
 use XML::Feed;
 use URI;
@@ -76,6 +76,4 @@ sub on_ircd_part {
     $pig->part($bot_name, $channel_name);
 }
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
 1;

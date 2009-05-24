@@ -1,7 +1,7 @@
 package Pig::CLI;
 use strict;
 use warnings;
-use Moose;
+use Any::Moose;
 use YAML::XS;
 use Pig;
 
@@ -10,9 +10,6 @@ has 'configfile' => (
     isa => 'Str',
     default => './config.yaml',
 );
-
-__PACKAGE__->meta->make_immutable;
-no Moose;
 
 sub get_config_from_file {
     my $self = shift;

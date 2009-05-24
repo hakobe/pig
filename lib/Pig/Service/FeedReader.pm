@@ -2,7 +2,7 @@ package Pig::Service::FeedReader;
 use strict;
 use warnings; 
 
-use Moose;
+use Any::Moose;
 # TODO Pig::Service を Role にする
 
 use Pig::Service::FeedReader::Channel;
@@ -103,6 +103,4 @@ sub on_ircd_part {
     $pig->part($self->bot_name, $channel);
 }
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
 1;
