@@ -65,6 +65,7 @@ sub on_check {
 sub check_channel {
     my ($self, $pig, $channel) = @_;
     return unless $channel->is_active;
+    $pig->log->debug(sprintf("Checking channel %s.", $channel->name));
 
     for my $feed (@{ $channel->feeds }) {
         $feed->each_new_entry( $pig, sub { 
@@ -81,6 +82,13 @@ sub check_channel {
             $pig->ircd->privmsg( $self->bot_name, $channel->name, $message );
         });
     }
+
+    $pig->log->debug(sprintf("Finish checking channel %s.", $channel->name));
+}
+
+sub on_ircd_public {
+    my ($self, $pig, $nick, $channel, $message) = @_;
+    $self->check_channel($pig, $self->channels->{$channel});
 }
 
 sub on_ircd_join {

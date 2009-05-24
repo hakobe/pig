@@ -26,12 +26,13 @@ sub init {
 
     POE::Session->create(
         object_states => [
-            $self => {
-                _start           => 'START',
-                check            => 'check',
-                ircd_daemon_join => 'ircd_daemon_join',
-                ircd_daemon_part => 'ircd_daemon_part',
-            },
+            $self => [qw(
+                _start           
+                check            
+                ircd_daemon_public
+                ircd_daemon_join 
+                ircd_daemon_part 
+            )],
         ],
         heap => { pig => $pig },
     );
@@ -46,7 +47,7 @@ sub _args {
     ($poe->object, $poe->heap->{pig}, $poe->args);
 }
 
-sub START {
+sub _start {
     my ($self, $pig) = _args @_;
     $pig->log->debug("Starting up POE IRCd server.");
 
@@ -66,6 +67,14 @@ sub check {
 
     POE::Kernel->alarm( check => time() + $pig->service->interval, 0 );
 };
+
+sub ircd_daemon_public {
+    my ($self, $pig, $user, $channel, $message) = _args @_;
+    $pig->log->debug(qq{$user say "$message" to $channel.});
+    my $nick = (split /\!/, $user)[0];
+
+    $pig->service->on_ircd_public($pig, $nick, $channel, $message);
+}
 
 sub ircd_daemon_join {
     my ($self, $pig, $user, $channel) = _args @_;
