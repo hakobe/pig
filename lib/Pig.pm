@@ -130,11 +130,6 @@ sub part {
     $self->ircd->yield(del_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
 }
 
-sub _args {
-    my $poe = sweet_args;
-    return ($poe->object, $poe->args);
-}
-
 sub check { # event
     my $poe = sweet_args;
     my $self = $poe->object;
