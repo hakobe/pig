@@ -1,5 +1,7 @@
-port: 16668
-log_level: debug
+log:
+  log_level: debug
+ircd:
+  port: 16669
 service:
   name: FeedReader
   interval: 300 # 5分毎にチェック
