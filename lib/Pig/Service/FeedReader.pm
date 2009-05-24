@@ -70,7 +70,8 @@ sub check_channel {
         $feed->each_new_entry( $pig, sub { 
             my $entry = shift;
             $pig->log->debug(
-                encode_utf8(sprintf( "%s: %s - %s",
+                encode_utf8(sprintf( "%s:%s: %s - %s",
+                    ($entry->issued || '[no date]'),
                     ($entry->author || '[no name]'),
                     ($entry->title  || '[no title]'),
                     ($entry->link   || '[no link]'))));

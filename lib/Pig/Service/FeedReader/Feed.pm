@@ -41,7 +41,11 @@ sub each_new_entry {
         # FIXME Gmailのフィードがhoursが24以上の日付を返してくるため
         no warnings 'redefine';
         local *XML::Feed::Entry::Format::Atom::iso2dt = \&iso2dt;
-        next if $self->last_update && $entry->issued < $self->last_update;
+
+        if ($self->last_update && $entry->issued < $self->last_update) {
+            #$pig->log->debug(sprintf("Skipped. ( %s < %s )", $entry->issued, $self->last_update));
+            next;
+        }
         $has_new = 1;
         $code->($entry);
     }
