@@ -5,71 +5,53 @@ use warnings;
 our $VERSION = '0.01';
 
 use Any::Moose;
-use UNIVERSAL::require;
-
-# POE
-#use Any::Moose 'X::POE::SweetArgs' => [qw(event)];
-use POE qw(Component::Server::IRC);
-use POE::Sugar::Args;
 
 # Log
 use Log::Log4perl qw(:easy);
 
-has ircd => (
-    is => 'ro',
-    default => sub { # TODO BUILD か そのへんでconfigからよみだす
-        POE::Component::Server::IRC->spawn( config => {
-            servername => 'localhost',
-            nicklen    => 15,
-            network    => 'pig',
-        });
-    },
-);
+# IRCd
+use Pig::IRCD;
 
-has log_level => (
-    is => 'ro',
-    isa => 'Str',
-    default => sub { 'info' },
-);
+# Service
+use UNIVERSAL::require;
 
 has log => (
     is => 'rw',
+    lazy => 1,
+    default => sub { Log::Log4perl->get_logger(ref shift) },
 );
 
-has port => (
-    is => 'ro',
-    isa => 'Int',
-    default => sub { 16667 },
+has ircd => (
+    is => 'rw',
 );
 
 has service => (
-    is => 'ro',
+    is => 'rw',
 );
 
 sub bootstrap {
     my ($class, $config) = @_;
-    my $service_config = delete $config->{service};
-    my $service = $class->prepare_service($service_config);
 
-    my $self = $class->new({service => $service, %$config});
+    my $log_config = delete $config->{log} || {};
+    my $log_level = delete $config->{log_level};
+    $log_config->{log_level} ||= $log_level;
+
+    my $ircd_config = delete $config->{ircd} || {};
+    my $port = delete $config->{port};
+    $ircd_config->{port} ||= $port;
+
+    my $service_config = delete $config->{service} || {};
+
+    my $self = $class->new($config);
+    $self->prepare_log($log_config);
+    $self->prepare_ircd($ircd_config);
+    $self->prepare_service($service_config);
+
     $self->run;
 }
 
-
-sub prepare_service {
-    my ($class, $service_config) = @_;
-    my $name = delete $service_config->{name};
-    my $service_class = 'Pig::Service::' . $name;
-    eval {
-        $service_class->use;
-    };
-    if ($@) { die "use $service_class failed: $@" }
-
-    return $service_class->new($service_config);
-}
-
-sub BUILD {
-    my $self = shift;
+sub prepare_log {
+    my ($self, $log_config) = @_;
     Log::Log4perl->easy_init( {
         ALL    => $ALL,
         TRACE  => $TRACE,
@@ -79,92 +61,36 @@ sub BUILD {
         ERROR  => $ERROR,
         FATAL  => $FATAL,
         OFF    => $OFF,
-    }->{uc($self->log_level)});
-    $self->log(Log::Log4perl->get_logger(ref $self));
-
-    POE::Session->create(
-        object_states => [
-            $self => {
-                _start           => 'START',
-                check            => 'check',
-                ircd_daemon_join => 'ircd_daemon_join',
-                ircd_daemon_part => 'ircd_daemon_part',
-            },
-        ],
-    );
+    }->{uc($log_config->{log_level})});
 }
 
-# TODO 以下の機能はPig::IRCDとかにはき出す予定
+sub prepare_ircd {
+    my ($self, $ircd_config) = @_;
+    my $ircd = Pig::IRCD->new($ircd_config);
+    $self->ircd($ircd);
+}
+
+sub prepare_service {
+    my ($self, $service_config) = @_;
+    my $name = delete $service_config->{name};
+    my $service_class = 'Pig::Service::' . $name;
+    eval {
+        $service_class->use;
+    };
+    if ($@) { die "use $service_class failed: $@" }
+
+    my $service = $service_class->new($service_config);
+    $self->service($service);
+}
 
 sub run { 
     my $self = shift;
     my $service_name = ref $self->service;
     $self->log->info("Starting up pig with $service_name.");
-    POE::Kernel->run;
+
+    $self->ircd->init($self);
+    $self->ircd->run;
 }
-
-sub START {
-    my ($self) = @_;
-    $self->log->debug("Starting up POE IRCd server.");
-    $self->ircd->yield( 'register' );
-    $self->ircd->add_listener( port => $self->port );
-
-    $self->service->on_start($self);
-    POE::Kernel->yield( 'check' );
-}
-
-sub privmsg {
-    my ($self, $nick, $channel, $message) = @_;
-    $self->ircd->yield(daemon_cmd_privmsg => $nick, $channel, $message );
-}
-
-sub join {
-    my ($self, $nick, $channel) = @_;
-    $self->ircd->yield(add_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
-    $self->ircd->yield(daemon_cmd_join => $nick, $channel );
-}
-
-sub part {
-    my ($self, $nick, $channel) = @_;
-    $self->ircd->yield(daemon_cmd_part => $nick, $channel );
-    $self->ircd->yield(del_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
-}
-
-sub check { # event
-    my $poe = sweet_args;
-    my $self = $poe->object;
-
-    $self->log->debug('Start checking.');
-    $self->service->on_check($self);
-    $self->log->debug('Finish checking.');
-
-    # TODO MooseX::POEを拡張してalarmも呼べるようにしたい
-    POE::Kernel->alarm( check => time() + $self->service->interval, 0);
-};
-
-sub ircd_daemon_join { # event
-    my $poe = sweet_args;
-    my $self = $poe->object;
-    my ($user, $channel) = $poe->args;
-
-    $self->log->debug("$user join to $channel.");
-    my $nick = (split /\!/, $user)[0];
-
-    $self->ircd->yield(add_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
-    $self->service->on_ircd_join($self, $nick, $channel);
-};
-
-sub ircd_daemon_part { # event
-    my $poe = sweet_args;
-    my $self = $poe->object;
-    my ($user, $channel) = $poe->args;
-
-    $self->log->debug("$user part form $channel.");
-    my $nick = (split /\!/, $user)[0];
-
-    $self->ircd->yield(del_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要
-    $self->service->on_ircd_part($self, $nick, $channel);
-};
 
 1;
 __END__

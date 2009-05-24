@@ -38,7 +38,7 @@ sub check_channel { # FIXME FeedReaderとあまりかわらないのでどうに
             my $message = $bot_name eq 'antenna' ?
                 sprintf("%s: %s %s", $entry->author, $entry->title, $entry->link)               :
                 sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]')) ;
-            $pig->privmsg( $bot_name, $channel->name, $message );
+            $pig->ircd->privmsg( $bot_name, $channel->name, $message );
         });
     }
 }
@@ -63,7 +63,7 @@ sub on_ircd_join {
     );
     $channel->activate;
     $self->channels->{$channel_name} = $channel;
-    $pig->join($bot_name, $channel_name);
+    $pig->ircd->join($bot_name, $channel_name);
 
     $self->check_channel($pig, $channel);
 }
@@ -73,7 +73,7 @@ sub on_ircd_part {
     my ($bot_name) = $channel_name =~ m/^\#(.*)$/xms;
 
     $self->channels->{$channel_name}->deactivate;
-    $pig->part($bot_name, $channel_name);
+    $pig->ircd->part($bot_name, $channel_name);
 }
 
 1;

@@ -78,7 +78,7 @@ sub check_channel {
 
             # TODO: メッセージフォーマットをconfigで指定できるよう
             my $message = sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]'));
-            $pig->privmsg( $self->bot_name, $channel->name, $message );
+            $pig->ircd->privmsg( $self->bot_name, $channel->name, $message );
         });
     }
 }
@@ -89,7 +89,7 @@ sub on_ircd_join {
     return unless $self->channels->{$channel};
 
     $self->channels->{$channel}->activate;
-    $pig->join($self->bot_name, $channel);
+    $pig->ircd->join($self->bot_name, $channel);
 
     $self->check_channel($pig, $self->channels->{$channel});
 }
@@ -100,7 +100,7 @@ sub on_ircd_part {
     return unless $self->channels->{$channel};
 
     $self->channels->{$channel}->deactivate;
-    $pig->part($self->bot_name, $channel);
+    $pig->ircd->part($self->bot_name, $channel);
 }
 
 1;
