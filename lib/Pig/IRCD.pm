@@ -103,6 +103,11 @@ sub privmsg {
     $self->pocosi->yield(daemon_cmd_privmsg => $nick, $channel, $message );
 }
 
+sub notice {
+    my ($self, $nick, $channel, $message) = @_;
+    $self->pocosi->yield(daemon_cmd_notice => $nick, $channel, $message );
+}
+
 sub join {
     my ($self, $nick, $channel) = @_;
     $self->pocosi->yield(add_spoofed_nick => { nick => $nick }); # Po::Co::Server::IRCD だと必要

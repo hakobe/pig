@@ -38,7 +38,10 @@ sub check_channel { # FIXME FeedReaderとあまりかわらないのでどうに
             my $message = $bot_name eq 'antenna' ?
                 sprintf("%s: %s %s", $entry->author, $entry->title, $entry->link)               :
                 sprintf("%s %s", ($entry->title || '[no title]'), ($entry->link || '[no url]')) ;
-            $pig->ircd->privmsg( $bot_name, $channel->name, $message );
+
+            my $method = $entry->author eq $self->hatena_id ? 'notice' : 'privmsg';
+
+            $pig->ircd->$method( $bot_name, $channel->name, $message );
         });
     }
 }
